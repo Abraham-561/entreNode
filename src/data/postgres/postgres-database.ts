@@ -2,6 +2,7 @@
 import { DataSource } from "typeorm";
 import User from "./models/user.model";
 import SecurityBox from "./models/segurity-box.model";
+import Pin from "./models/pin.model";
 
 
 interface Options {
@@ -25,7 +26,7 @@ export class PostgresDatabase {
             username: options.username,
             password: options.password,
             database: options.database,
-            entities: [User ,SecurityBox], 
+            entities: [User ,SecurityBox,Pin,Credential], 
             synchronize: true, 
             ssl: {
                 

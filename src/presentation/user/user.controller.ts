@@ -1,38 +1,98 @@
 import { Request, Response } from "express";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import User from "../../data/postgres/models/user.model";
+import { UserService } from "../services/user.service";
+import { CustomError } from "../../domain/errors/costom.error";
 
-export const registerUser = async (req: Request, res: Response) => {
-  try {
-    const { name, surname, email, cellphone, password } = req.body;
 
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) return res.status(400).json({ message: "El usuario ya existe" });
+import { CreateUserDTO } from "../../domain/dtos/user/create-user.dto";
+import { UpdateUserDTO } from "../../domain/dtos/user/update-user.dto";
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await User.create({ name, surname, email, cellphone, password: hashedPassword });
+import { protectAccountOwner } from "../../config/validate-owner";
 
-    res.status(201).json({ message: "Usuario registrado exitosamente", user: newUser });
-  } catch (error) {
-    res.status(500).json({ message: "Error en el servidor", error });
-  }
-};
 
-export const loginUser = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
+export class UserController {
+    constructor(private readonly userService: UserService) {}
 
-    const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+    private handleError = (error: unknown, res: Response) => {
+        if (error instanceof CustomError) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        console.error(error);
+        return res.status(500).json({ message: "Something went very wrong!" });
+    };
 
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) return res.status(401).json({ message: "Contraseña incorrecta" });
+    findAllUsers = async (req: Request, res: Response) => {
+        try {
+            const users = await this.userService.findAll();
+            res.status(200).json(users);
+        } catch (error) {
+            this.handleError(error, res);
+        }
+    };
 
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: process.env.JWT_EXPIRES_IN });
+    findOneUser = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const user = await this.userService.findOne(id);
+            res.status(200).json(user);
+        } catch (error) {
+            this.handleError(error, res);
+        }
+    };
 
-    res.status(200).json({ message: "Inicio de sesión exitoso", token });
-  } catch (error) {
-    res.status(500).json({ message: "Error en el servidor", error });
-  }
-};
+    createUser = async (req: Request, res: Response) => {
+        const [error, createUserDto] = CreateUserDTO.create(req.body);
+        if (error) return res.status(422).json({ message: error });
+
+        try {
+            const newUser = await this.userService.create(createUserDto!);
+            res.status(201).json(newUser);
+        } catch (error) {
+            this.handleError(error, res);
+        }
+    };
+
+    updateUser = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const sessionUserId = req.body.sessionUserId;
+
+            if (!protectAccountOwner(id, sessionUserId)) {
+                return res.status(401).json({ message: "You are not the owner of this account" });
+            }
+
+            const [error, updateUserDto] = UpdateUserDTO.update(req.body);
+            if (error) return res.status(422).json({ message: error });
+
+            const updatedUser = await this.userService.update(id, updateUserDto!);
+            res.status(200).json(updatedUser);
+        } catch (error) {
+            this.handleError(error, res);
+        }
+    };
+
+    deleteUser = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const sessionUserId = req.body.sessionUserId;
+
+            if (!protectAccountOwner(id, sessionUserId)) {
+                return res.status(401).json({ message: "You are not the owner of this account" });
+            }
+
+            await this.userService.delete(id);
+            res.status(204).send();
+        } catch (error) {
+            this.handleError(error, res);
+        }
+    };
+
+    loginUser = async (req: Request, res: Response) => {
+        try {
+            const { email, password } = req.body;
+            const data = await this.userService.login(email, password);
+            res.status(200).json(data);
+        } catch (error) {
+            this.handleError(error, res);
+        }
+    };
+}

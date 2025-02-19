@@ -1,56 +1,43 @@
-import { DataTypes, Model } from "sequelize";
-import sequelize from "./index";
+import {
+  BaseEntity,
+  BeforeInsert,
+  Column,
+  Entity,
+  PrimaryGeneratedColumn,
+} from "typeorm";
+import { bcryptAdapter } from "../../../config/encrypt";
 
-class User extends Model {
-  public id!: string;
-  public name!: string;
-  public surname!: string;
-  public email!: string;
-  public cellphone!: string;
-  public password!: string;
-  public status!: boolean;
+export enum Status {
+  AVAILABLE = "AVAILABLE",
+  DISABLED = "DISABLED",
 }
 
-User.init(
-  {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
-    name: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-    },
-    surname: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-    },
-    email: {
-      type: DataTypes.STRING(150),
-      allowNull: false,
-      unique: true,
-    },
-    cellphone: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-      unique: true,
-    },
-    password: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-    },
-    status: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true,
-    },
-  },
-  {
-    sequelize,
-    modelName: "User",
-    tableName: "users",
-    timestamps: false,
-  }
-);
+@Entity("users") // Nombre de la tabla en la base de datos
+export class User extends BaseEntity {
+  @PrimaryGeneratedColumn("uuid")
+  id: string;
 
-export default User;
+  @Column("varchar", { length: 80, nullable: false })
+  name: string;
+
+  @Column("varchar", { length: 80, nullable: false })
+  surname: string;
+
+  @Column("varchar", { length: 150, nullable: false, unique: true })
+  email: string;
+
+  @Column("varchar", { length: 20, nullable: false, unique: true })
+  cellphone: string;
+
+  @Column("varchar", { nullable: false })
+  password: string;
+
+  @Column("enum", { enum: Status, default: Status.AVAILABLE })
+  status: Status;
+
+  @BeforeInsert()
+  async hashPassword() {
+      this.password = await bcryptAdapter.encrypt(this.password);
+  }
+}
+

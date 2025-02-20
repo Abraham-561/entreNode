@@ -9,7 +9,7 @@ async function main() {
     const postgres = new PostgresDatabase({
         username: envs.USERNAME_DATABASE,
         password: envs.PASSWORD_DATABASE,
-        host: envs.HOST_DABASE,
+        host: envs.HOST_DATABASE,
         database: envs.DATABASE,
         port:envs.PORT_DATABASE
     })

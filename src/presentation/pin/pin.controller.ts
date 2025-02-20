@@ -1,24 +1,65 @@
 import { Request, Response } from "express";
-import Pin from "../../data/postgres/models/pin.model";
+import { PinService } from "../services/pin.service";
+import { CustomError } from "../../domain/errors/costom.error";
+import {  UpdatePinDTO } from "../../domain/dtos/pin/update-pin.dto";
+import { CreatePinDTO } from "../../domain/dtos/pin/create-pin.dto";
 
-export const createPin = async (req: Request, res: Response) => {
-  try {
-    const { code, userId } = req.body;
-    const newPin = await Pin.create({ code, userId });
+interface AuthenticatedRequest extends Request {
+  user?: { id: string };
+}
 
-    res.status(201).json({ message: "PIN guardado", pin: newPin });
-  } catch (error) {
-    res.status(500).json({ message: "Error en el servidor", error });
+export class PinController {
+  constructor(private readonly pinService: PinService) {}
+
+  private handleError = (error: unknown, res: Response) => {
+    if (error instanceof CustomError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    return res.status(500).json({ message: "Internal server error" });
+  };
+
+  // Método para actualizar PIN corregido
+  async update(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+      
+      const { id } = req.params;
+      const [error, dto] = UpdatePinDTO.update({ ...req.body, id });
+      
+      if (error) return res.status(400).json({ message: error });
+      
+      const updatedPin = await this.pinService.update(dto!, req.user.id);
+      res.status(200).json(updatedPin);
+    } catch (error) {
+      this.handleError(error, res);
+    }
   }
-};
 
-export const getPins = async (req: Request, res: Response) => {
-  try {
-    const userId = req.params.userId;
-    const pins = await Pin.findAll({ where: { userId } });
+  async create(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    res.status(200).json({ pins });
-  } catch (error) {
-    res.status(500).json({ message: "Error en el servidor", error });
+      const [error, dto] = CreatePinDTO.create(req.body);
+      if (error) return res.status(422).json({ message: error });
+
+      const pin = await this.pinService.create(req.user.id, dto!);
+      res.status(201).json(pin);
+    } catch (error) {
+      this.handleError(error, res);
+    }
   }
-};
+
+  async validate(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+      const { code } = req.body;
+      if (!code) return res.status(400).json({ message: "El código es requerido" });
+
+      const response = await this.pinService.validate(req.user.id, code);
+      res.json(response);
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  }
+}

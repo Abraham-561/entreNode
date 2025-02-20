@@ -1,9 +1,23 @@
 import { Router } from "express";
-import { createSecurityBox, getSecurityBoxes } from "./security-box.controller";
+import { SecurityBoxController } from "../security-box/security-box.controller";
+import { SecurityBoxService } from "../services/security-box.service";
+import { AuthMiddleware } from "../middleware/auth.middleware";
 
-const router = Router();
+export class SecurityBoxRouter {
+    static get routes(): Router {
+        const router = Router();
+        const securityBoxService = new SecurityBoxService();
+        const securityBoxController = new SecurityBoxController(securityBoxService);
 
-router.post("/", createSecurityBox);
-router.get("/:user_id", getSecurityBoxes);
+        router.use(AuthMiddleware.protect);
 
-export default router;
+        router.get("/", securityBoxController.findAll);
+        router.get("/:id", securityBoxController.findOne);
+        router.post("/", securityBoxController.create);
+        router.patch("/:id", securityBoxController.update);
+        router.delete("/:id", securityBoxController.delete);
+
+        return router;
+    }
+}
+

@@ -3,16 +3,19 @@ import {
   BeforeInsert,
   Column,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { bcryptAdapter } from "../../../config/encrypt";
+import { SecurityBox } from "./segurity-box.model";
+import { Pin } from "./pin.model";
 
 export enum Status {
   AVAILABLE = "AVAILABLE",
   DISABLED = "DISABLED",
 }
 
-@Entity("users") // Nombre de la tabla en la base de datos
+@Entity("users")
 export class User extends BaseEntity {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -35,9 +38,14 @@ export class User extends BaseEntity {
   @Column("enum", { enum: Status, default: Status.AVAILABLE })
   status: Status;
 
+  @OneToMany(() => SecurityBox, (securityBox) => securityBox.user)
+  securityBoxes: SecurityBox[];
+
+  @OneToMany(() => Pin, (pin) => pin.user)
+  pins: Pin[];
+
   @BeforeInsert()
   async hashPassword() {
       this.password = await bcryptAdapter.encrypt(this.password);
   }
 }
-

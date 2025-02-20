@@ -1,9 +1,17 @@
 import { Router } from "express";
-import { createCredential, getCredentials } from "./credential.controller";
+
+
+
+import { CredentialController} from "../../presentation/credential/credential.controller";
+import { CredentialStorageService } from "../../presentation/services/credential.service"
 
 const router = Router();
+const service = new CredentialStorageService();
+const controller = new CredentialController(service);
 
-router.post("/", createCredential);
-router.get("/:security_box_id", getCredentials);
+router.post("/", controller.create);
+router.put("/:id", controller.update);
 
 export default router;
+
+

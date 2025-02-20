@@ -6,6 +6,7 @@ import { CustomError } from "../../domain/errors/costom.error";
 import { bcryptAdapter } from "../../config/encrypt";
 import { JwtAdapter } from "../../config/jwt.adapter";
 
+
 export class UserService {
     async findOne(id: string) {
         const user = await User.findOne({
@@ -23,7 +24,7 @@ export class UserService {
 
     async findAll() {
         try {
-            const users = await User.find({
+            const users = await User.findOne({
                 where: {
                     status: Status.AVAILABLE,
                 },
